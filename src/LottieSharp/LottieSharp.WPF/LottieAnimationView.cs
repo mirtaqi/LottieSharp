@@ -14,10 +14,40 @@ namespace LottieSharp.WPF
 {
     public class LottieAnimationView : SKElement
     {
-        private readonly Stopwatch watch = new();
+        private readonly Stopwatch? watch = new();
         private Animation animation;
-        private DispatcherTimer timer;
+        private DispatcherTimer? timer;
         private int loopCount;
+
+        public LottieAnimationView()
+        {
+
+        }
+
+        protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
+        {
+            base.OnPropertyChanged(e);
+            if (e.Property == VisibilityProperty || e.Property == IsEnabledProperty || e.Property==IsVisibleProperty) 
+            {
+                if (EnsureVisibleAndEnabled())
+                {
+                    if (animation !=null && (AutoPlay || IsPlaying))
+                    {
+                        PlayAnimation();
+                    }
+                }
+                else
+                {
+                    StopAnimation();
+                }
+            }
+            
+        }
+
+        private bool EnsureVisibleAndEnabled()
+        {
+            return Visibility == Visibility.Visible && IsEnabled && IsVisible;
+        }
 
         public AnimationInfo Info
         {
@@ -41,16 +71,25 @@ namespace LottieSharp.WPF
 
         public virtual void PlayAnimation()
         {
-            timer.Start();
-            watch.Start();
-            IsPlaying = true;
+            if (EnsureVisibleAndEnabled())
+            {
+                
+                timer?.Start();
+                watch?.Start();
+                IsPlaying = true;
+            }
+            else
+            {
+                timer?.Stop();
+                watch?.Stop();
+            }
         }
 
         public virtual void StopAnimation()
         {
             loopCount = RepeatCount;
-            timer.Stop();
-            watch.Reset();
+            timer?.Stop();
+            watch?.Reset();
             IsPlaying = false;
 
             OnStop?.Invoke(this, null);
@@ -234,8 +273,11 @@ namespace LottieSharp.WPF
             SKCanvas canvas = e.Surface.Canvas;
             canvas.Clear(SKColor.Empty);
             SKImageInfo info = e.Info;
-
-            if (animation != null)
+            if (!EnsureVisibleAndEnabled())
+            {
+                StopAnimation();
+            }
+            else if (animation != null)
             {
                 animation.SeekFrameTime((float)watch.Elapsed.TotalSeconds);
 
